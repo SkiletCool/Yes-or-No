@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Питання-Відповідь</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-3xl">
+        <!-- Заголовок -->
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-purple-800 mb-2">Питання & Відповідь</h1>
+            <p class="text-gray-600">Створюйте питання та отримуйте відповіді "Так" чи "Ні"</p>
+        </header>
+
+        <!-- Форма додавання питання -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8 transition-all duration-300 hover:shadow-xl">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Додати нове питання</h2>
+            <div class="flex flex-col md:flex-row gap-4">
+                <input 
+                    type="text" 
+                    id="questionInput" 
+                    placeholder="Введіть ваше питання..." 
+                    class="flex-grow px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                <button 
+                    id="addQuestionBtn" 
+                    class="px-6 py-3 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                >
+                    <i class="fas fa-plus"></i> Додати
+                </button>
+            </div>
+        </div>
+
+        <!-- Список питань -->
+        <div id="questionsContainer" class="space-y-6">
+            <!-- Приклад питання (буде видалено після додавання нового) -->
+            <div class="question-item bg-white rounded-xl shadow-md overflow-hidden fade-in">
+                <div class="p-5 border-b border-gray-100">
+                    <div class="flex justify-between items-start">
+                        <h3 class="text-lg font-medium text-gray-800">Чи варто вивчати програмування?</h3>
+                        <button class="delete-btn text-gray-400 hover:text-red-500 transition-colors">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-5 bg-gray-50">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-500">Відповідь:</span>
+                        <div class="flex gap-3">
+                            <button class="answer-btn yes-btn px-4 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors">
+                                <i class="fas fa-check mr-1"></i> Так
+                            </button>
+                            <button class="answer-btn no-btn px-4 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition-colors">
+                                <i class="fas fa-times mr-1"></i> Ні
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="flex items-center gap-2 text-sm text-gray-600">
+                            <span>Результат:</span>
+                            <span class="result-display font-medium">Ще не відповіли</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Статистика -->
+        <div class="mt-12 bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Статистика</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-blue-50 p-4 rounded-lg text-center">
+                    <div class="text-3xl font-bold text-blue-600 mb-1" id="totalQuestions">1</div>
+                    <div class="text-sm text-blue-800">Всього питань</div>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg text-center">
+                    <div class="text-3xl font-bold text-green-600 mb-1" id="yesAnswers">0</div>
+                    <div class="text-sm text-green-800">Відповідей "Так"</div>
+                </div>
+                <div class="bg-red-50 p-4 rounded-lg text-center">
+                    <div class="text-3xl font-bold text-red-600 mb-1" id="noAnswers">0</div>
+                    <div class="text-sm text-red-800">Відповідей "Ні"</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const questionsContainer = document.getElementById('questionsContainer');
+            const questionInput = document.getElementById('questionInput');
+            const addQuestionBtn = document.getElementById('addQuestionBtn');
+            const totalQuestionsEl = document.getElementById('totalQuestions');
+            const yesAnswersEl = document.getElementById('yesAnswers');
+            const noAnswersEl = document.getElementById('noAnswers');
+
+            let questions = [];
+            let yesCount = 0;
+            let noCount = 0;
+
+            // Завантаження даних з localStorage
+            loadFromLocalStorage();
+
+            // Додавання нового питання
+            addQuestionBtn.addEventListener('click', addQuestion);
+            questionInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addQuestion();
+            });
+
+            // Обробник кліків на контейнері питань (делегування подій)
+            questionsContainer.addEventListener('click', function(e) {
+                // Видалення питання
+                if (e.target.closest('.delete-btn')) {
+                    const questionItem = e.target.closest('.question-item');
+                    const questionId = questionItem.dataset.id;
+                    deleteQuestion(questionId);
+                }
+                
+                // Відповідь "Так"
+                if (e.target.closest('.yes-btn')) {
+                    const questionItem = e.target.closest('.question-item');
+                    const questionId = questionItem.dataset.id;
+                    answerQuestion(questionId, 'yes');
+                }
+                
+                // Відповідь "Ні"
+                if (e.target.closest('.no-btn')) {
+                    const questionItem = e.target.closest('.question-item');
+                    const questionId = questionItem.dataset.id;
+                    answerQuestion(questionId, 'no');
+                }
+            });
+
+            function addQuestion() {
+                const questionText = questionInput.value.trim();
+                if (!questionText) {
+                    showAlert('Будь ласка, введіть питання', 'error');
+                    return;
+                }
+
+                const questionId = Date.now().toString();
+                const newQuestion = {
+                    id: questionId,
+                    text: questionText,
+                    answer: null
+                };
+
+                questions.unshift(newQuestion);
+                renderQuestions();
+                saveToLocalStorage();
+                updateStats();
+
+                questionInput.value = '';
+                showAlert('Питання додано успішно!', 'success');
+            }
+
+            function deleteQuestion(id) {
+                const question = questions.find(q => q.id === id);
+                if (question && question.answer === 'yes') yesCount--;
+                if (question && question.answer === 'no') noCount--;
+
+                questions = questions.filter(q => q.id !== id);
+                renderQuestions();
+                saveToLocalStorage();
+                updateStats();
+                showAlert('Питання видалено', 'info');
+            }
+
+            function answerQuestion(id, answer) {
+                const question = questions.find(q => q.id === id);
+                if (!question) return;
+
+                // Якщо раніше була відповідь, зменшуємо відповідний лічильник
+                if (question.answer === 'yes') yesCount--;
+                if (question.answer === 'no') noCount--;
+
+                // Оновлюємо відповідь та збільшуємо лічильник
+                question.answer = answer;
+                if (answer === 'yes') yesCount++;
+                if (answer === 'no') noCount++;
+
+                renderQuestions();
+                saveToLocalStorage();
+                updateStats();
+            }
+
+            function renderQuestions() {
+                if (questions.length === 0) {
+                    questionsContainer.innerHTML = `
+                        <div class="text-center py-10 text-gray-500">
+                            <i class="fas fa-question-circle text-4xl mb-3 text-purple-200"></i>
+                            <p>Немає питань. Додайте перше питання!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                questionsContainer.innerHTML = questions.map(question => `
+                    <div class="question-item bg-white rounded-xl shadow-md overflow-hidden fade-in" data-id="${question.id}">
+                        <div class="p-5 border-b border-gray-100">
+                            <div class="flex justify-between items-start">
+                                <h3 class="text-lg font-medium text-gray-800">${question.text}</h3>
+                                <button class="delete-btn text-gray-400 hover:text-red-500 transition-colors">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-5 bg-gray-50">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-500">Відповідь:</span>
+                                <div class="flex gap-3">
+                                    <button class="answer-btn yes-btn px-4 py-2 ${question.answer === 'yes' ? 'bg-green-200' : 'bg-green-100'} text-green-800 rounded-lg hover:bg-green-200 transition-colors">
+                                        <i class="fas fa-check mr-1"></i> Так
+                                    </button>
+                                    <button class="answer-btn no-btn px-4 py-2 ${question.answer === 'no' ? 'bg-red-200' : 'bg-red-100'} text-red-800 rounded-lg hover:bg-red-200 transition-colors">
+                                        <i class="fas fa-times mr-1"></i> Ні
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <div class="flex items-center gap-2 text-sm text-gray-600">
+                                    <span>Результат:</span>
+                                    <span class="result-display font-medium">
+                                        ${question.answer === 'yes' ? '<span class="text-green-600">Так</span>' : 
+                                          question.answer === 'no' ? '<span class="text-red-600">Ні</span>' : 
+                                          'Ще не відповіли'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            function updateStats() {
+                totalQuestionsEl.textContent = questions.length;
+                yesAnswersEl.textContent = yesCount;
+                noAnswersEl.textContent = noCount;
+            }
+
+            function saveToLocalStorage() {
+                localStorage.setItem('yesNoQuestions', JSON.stringify({
+                    questions: questions,
+                    yesCount: yesCount,
+                    noCount: noCount
+                }));
+            }
+
+            function loadFromLocalStorage() {
+                const data = JSON.parse(localStorage.getItem('yesNoQuestions'));
+                if (data) {
+                    questions = data.questions || [];
+                    yesCount = data.yesCount || 0;
+                    noCount = data.noCount || 0;
+                } else {
+                    // Приклад питання при першому запуску
+                    questions = [{
+                        id: 'example',
+                        text: 'Чи варто вивчати програмування?',
+                        answer: null
+                    }];
+                }
+                renderQuestions();
+                updateStats();
+            }
+
+            function showAlert(message, type) {
+                const alert = document.createElement('div');
+                alert.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white font-medium flex items-center gap-2 z-50 fade-in ${type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500'}`;
+                alert.innerHTML = `
+                    <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : type === 'success' ? 'fa-check-circle' : 'fa-info-circle'}"></i>
+                    ${message}
+                `;
+                document.body.appendChild(alert);
+                
+                setTimeout(() => {
+                    alert.classList.remove('fade-in');
+                    alert.classList.add('fade-out');
+                    setTimeout(() => alert.remove(), 500);
+                }, 3000);
+            }
+        });
+    </script>
+</body>
+</html>
